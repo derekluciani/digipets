@@ -14,21 +14,21 @@
 ## Canonical Time Model
 Time proceeds linearly. 1 Game Day = 1 Pet Year.
 
-| Unit           | Game Time   | Human Time | Notes                     |
+| Unit           | Game Time   | Real Time  | Notes                     |
 | -------------- | ----------- | ---------- | ------------------------- |
 | **Tick**       | 1 minutes   | 1 sec      | `baseTime`                |
 | **Hour**       | 60 minutes  | 60 sec     | `decayTime`               |
-| **Day/Year**   | 24 hrs      | 24 minutes | `ageTime`                 |
+| **Day/Year**   | 24 hours    | 24 minutes | `ageTime`                 |
 
 ## Day/Night Cycle
 - Day time: 12 game hours, represented visually as a `sun` emoji
 - Night time: 12 game hours, represented visually as a `moon` emoji
 
 ## Pet Life Expectancy
-| Pet Type   | Life Expectancy     | Real-Time Duration |
-| ---------- | ------------------- | ------------------ |
-| Fox        | 10 game years       | 4 hours            |
-| Axolotl    | 15 game years       | 6 hours            |
+| Pet Type   | Life Expectancy     | Real Time        |
+| ---------- | ------------------- | ---------------- |
+| Fox        | 10 game years       | 4 hours          |
+| Axolotl    | 15 game years       | 6 hours          |
 
 ## Pet Life Phases
 | Phase   | Name         | Phase Duration             |
@@ -38,7 +38,7 @@ Time proceeds linearly. 1 Game Day = 1 Pet Year.
 | 3       | Teen         | (`lifeExpectancy`) / 4     |
 | 4       | Adult        | (`lifeExpectancy`) / 4     |
 
-### Special Phase**
+### Special Phase
 - At the end of the "Adult" phase, run the [Caretaker Score Formula](#caretaker-score-formula)
     - If `caretakerScore` ≥ 95, then `isDead: false` and `isSpecial: true` and `lifeExpectancy` +5.
     - Else, `isDead: true`.
@@ -55,12 +55,12 @@ The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Re
 |            | lastTick              | date/time     | Timestamp used to calculate 'Away Time' upon re-opening the app.
 |            | firstTick             | date/time     | Timestamp used to calculate 'Away Time' upon re-opening the app.
 |            | lifeExpectancy        | number        | Determines the lifespan of each `petType`.
-| Phase      | isBaby                | boolean       | Determines if pet is in phase 1 of their life.
-|            | isToddler             | boolean       | Determines if pet is in phase 2 of their life.
-|            | isTeen                | boolean       | Determines if pet is in phase 3 of their life.
-|            | isAdult               | boolean       | Determines if pet is in phase 4 of their life.
-|            | isSpecial             | boolean       | Determines if pet is in phase 5 of their life.
-| Vitals     | age                   | number        | Increments every 24 human minutes (1 game year).
+| Phase      | isBaby                | boolean       | Determines if pet is in phase 1 of life.
+|            | isToddler             | boolean       | Determines if pet is in phase 2 of life.
+|            | isTeen                | boolean       | Determines if pet is in phase 3 of life.
+|            | isAdult               | boolean       | Determines if pet is in phase 4 of life.
+|            | isSpecial             | boolean       | Determines if pet is in phase 5 of life.
+| Vitals     | age                   | number        | Increments every 1 game year (`ageTime`).
 |            | hunger                | number        | `0–100`
 |            | mood                  | number        | `0–100`
 |            | energy                | number        | `0–100`
@@ -94,7 +94,7 @@ The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Re
 |            | sickTime              | number        | Tracks elapsed time between state change from `isSick: true` -> `isSick: false`, in game minutes.
 |            | sleepTime             | number        | Tracks elapsed time while `isSleeping: true`.
 |            | offlineTime           | number        | Tracks elapsed time between `lastTick` and `firstTick` in `elapsedHumanSeconds`.
-|            | elapsedHumanSeconds   | number        | Tracks elapsed time in human seconds.
+|            | elapsedHumanSeconds   | number        | Tracks elapsed time in seconds (real time).
 | Other      | isRadioPlaying        | boolean       | Determines the state of `isDancing`. If `isRadioPlaying: true` then `isDancing: true`.
 |            | isMusicPlaying        | boolean       | Determines the state of music playback. 
 |            | isDayTime             | boolean       | Checks for day time phase when `isSleeping: true`. Determines duration of `sleepTime`.
@@ -121,7 +121,7 @@ When a user resumes after inactivity:
   - Simulation step size = 1 game minute per iteration
   
 Performance cap:
-- If `offlineTime` > 24 minutes (real-time), change simulation time from minute-by-minute to _hour-sized steps_.
+- If `offlineTime` > 24 minutes (real time), change simulation time from minute-by-minute to _hour-sized steps_.
 - All thresholds, timers, and events must still be processed in order.
   
 ### Vital Timers & Thresholds
@@ -154,9 +154,10 @@ if `isSleeping: false` then:
 ### Death Conditions
 `isDead: true` if:
 1. `age` > `lifeExpectancy` and `caretakerScore` < 95 at the end of Adult phase.
-2. `health` ≤ 0.
-3. `hunger` = 100 for ≥ 720 game minutes.
-4. `mood` ≤ 10 for ≥ 720 game minutes.
+2. `age` > `lifeExpectancy` and `isSpecial: true`.
+3. `health` ≤ 0.
+4. `hunger` = 100 for ≥ 720 game minutes.
+5. `mood` ≤ 10 for ≥ 720 game minutes.
 
 ## User Actions & Impact to Status
 ! = per game hour 
@@ -233,7 +234,7 @@ What the pet is doing.
 - Randomly switches between states:
   - (40%) _standing_
   - (60%) _watching tv_
-- The duration of each state, when active, is `10` human seconds before sampling next possible active state.
+- The duration of each state, when active, is `10` seconds (real time) before sampling next possible active state.
 
 **Eating**
   - Pet will eat if their hunger is between 1-100.
@@ -244,7 +245,7 @@ What the pet is doing.
     - If the pet is cleaned, `isDirty: false` and `dirtyTime` timer resets.
 
 **Vomiting**
-- Occurs if Hunger = 100 for ≥ 6 game hours, or if fed 6 times in 6 human seconds.
+- Occurs if Hunger = 100 for ≥ 6 game hours, or if fed 6 times in 6 seconds (real time).
 - When vomiting occurs:
   - hunger `0`
   - mood `0` -> state=_sick_
@@ -254,7 +255,7 @@ What the pet is doing.
 - Randomly switches between states:
   - (50%) _play with toys_
   - (50%) _chasing ball_
-- The duration of each state, when active, is `10` human seconds before sampling next possible active state.
+- The duration of each state, when active, is `10` seconds (real time) before sampling next possible active state.
 - A pet will play continuously unless:
   - energy `≤ 33` or the user interrupts the pet with a different action. 
 
@@ -299,7 +300,7 @@ How the pet is feeling. Expressions are derived from other states and must never
 ## Additional Features
 **Keepsake Feature:** Upon death, use `html2canvas` to allow the user to export a summary card of their pet's final stats, caretaker score and appearance as a JPG image.
 
-**Persistence:** The game state must be saved to `localStorage` every 5 seconds (human time) so players can return to their pet later.
+**Persistence:** The game state must be saved to `localStorage` every 5 seconds (real time) so players can return to their pet later.
 
 ## Player Achievements
 The user/player can accomplish the following achievements as a tracked checklist:
