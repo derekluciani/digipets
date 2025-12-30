@@ -3,39 +3,22 @@
 ## Objective  
 * Build a functional **Tamagotchi-inspired Web App** using React and Zustand.The application operates as a **real-time finite state machine**, where pet state is driven by a delta-time loop (accounting for time decay) and direct player intervention.
 
-## Role & Expectations  
-- You are an expert **web software engineer** specializing in **game design** and **React UI**.  
-- You will act as an **autonomous agent**, responsible for architecting and building the entire application.  
-- You will produce **complete, functional code** — not pseudocode or placeholders.  
-- You will implement an architecture that is flexible enough to handle **feature extensibility** in the future.  
-- You will maintain an organized **file structure**.  
-- You will define **highly semantic** naming conventions for variables and objects.  
-- You will add **concise inline comments** for clarity.  
-- You will **request to run the app server** before doing so.
-- Yuo will ensure the app is fully functional in modern browsers.
-- You will ensure all interactions and state transitions respond in real time.
-- You will enable the app to run with command: `npm run dev`
-- You will execute all refinements if requested.   
-
-## Success Criteria  . 
-- **Caretaker Score**: Calculated at the end of the pet's life. [Use formula](#caretaker-score-formula) 
-
 ## Tech Stack  
 - **Frontend:** Vite + React  
-- **State Management:** Zustand (with `persist` middleware for `localStorage`). [See specification](#zustand-store-structure)
-- **Game Engine:** Custom "Delta-Time" loop. *Concept:* Calculates `deltaTime` between the last saved timestamp and current time to sequentially apply decay and evolution logic. [See specification](#canonical-time)
+- **State Management:** Zustand (with `persist` middleware for `localStorage`). [See specification](#state-management)
+- **Game Engine:** Custom "Delta-Time" loop. *Concept:* The purpose is to calculate `deltaTime`, between the last saved timestamp and current time to sequentially apply decay and evolution logic. [See specification](#game-engine)
 - **UI Components:** shadcn/ui  
 - **Styling:** Tailwind 4 (CSS Variables)
 - **Assets:** Standard Emojis to represent all visual states
 
 ## Canonical Time Model
-Time proceeds linearly. 1 Game Day equals 1 Pet Year.
+Time proceeds linearly. 1 Game Day = 1 Pet Year.
 
 | Unit           | Game Time   | Human Time | Notes                     |
 | -------------- | ----------- | ---------- | ------------------------- |
-| **Tick**       | 1 minutes   | 1 sec      | Base simulation unit      |
-| **Hour**       | 60 minutes  | 60 sec     | Decay interval unit       |
-| **Day/Year**   | 24 hrs      | 24 minutes | Age increment unit        |
+| **Tick**       | 1 minutes   | 1 sec      | `baseTime`                |
+| **Hour**       | 60 minutes  | 60 sec     | `decayTime`               |
+| **Day/Year**   | 24 hrs      | 24 minutes | `ageTime`                 |
 
 ## Day/Night Cycle
 - Day time: 12 game hours, represented visually as a `sun` emoji
@@ -48,17 +31,14 @@ Time proceeds linearly. 1 Game Day equals 1 Pet Year.
 | Axolotl    | 15 game years       | 6 hours            |
 
 ## Pet Life Phases
-Phases are determined by `age` (Game Years).
-
 | Phase   | Name         | Phase Duration             |
 | ------- | ------------ | -------------------------- |
-| 1       | Baby         | (`lifeExpectancy`) / 4  |
-| 2       | Toddler      | (`lifeExpectancy`) / 4  |
-| 3       | Teen         | (`lifeExpectancy`) / 4  |
-| 4       | Adult        | (`lifeExpectancy`) / 4  |
+| 1       | Baby         | (`lifeExpectancy`) / 4     |
+| 2       | Toddler      | (`lifeExpectancy`) / 4     |
+| 3       | Teen         | (`lifeExpectancy`) / 4     |
+| 4       | Adult        | (`lifeExpectancy`) / 4     |
 
 ### Special Phase**
-- Only true if `caretakerScore` ≥ 95 at the end of Adult phase.
 - At the end of the "Adult" phase, run the [Caretaker Score Formula](#caretaker-score-formula)
     - If `caretakerScore` ≥ 95, then `isDead: false` and `isSpecial: true` and `lifeExpectancy` +5.
     - Else, `isDead: true`.
@@ -73,6 +53,7 @@ The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Re
 |            | name                  | string        | User-defined
 |            | birthday              | date/time     | Timestamp recorded at the time of pet creation.
 |            | lastTick              | date/time     | Timestamp used to calculate 'Away Time' upon re-opening the app.
+|            | firstTick             | date/time     | Timestamp used to calculate 'Away Time' upon re-opening the app.
 |            | lifeExpectancy        | number        | Determines the lifespan of each `petType`.
 | Phase      | isBaby                | boolean       | Determines if pet is in phase 1 of their life.
 |            | isToddler             | boolean       | Determines if pet is in phase 2 of their life.
@@ -103,13 +84,16 @@ The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Re
 | Counter    | poopCount             | number        |
 |            | penaltyCount          | number        |
 | Timers     | deltaTime             | number        | Tracked in game minutes. [See calculation](#delta-time)
+|            | baseTime              | number        | Tracks fundamental game time unit (tick).
+|            | decayTime             | number        | Tracks elapsed time between successive game hours.
+|            | ageTime               | number        | Tracks elapsed time between successive age changes, in game years.
 |            | hungerTime            | number        | Tracks elapsed time between two successive eating events, in game minutes.
 |            | starvingTime          | number        | Tracks elapsed time while hunger = 100, in game minutes.
 |            | moodTime              | number        | Tracks elapsed time while mood ≤ 10, in game minutes.
 |            | dirtyTime             | number        | Tracks elapsed time between state change from `isDirty: true` -> `isDirty: false`, in game minutes.
 |            | sickTime              | number        | Tracks elapsed time between state change from `isSick: true` -> `isSick: false`, in game minutes.
 |            | sleepTime             | number        | Tracks elapsed time while `isSleeping: true`.
-|            | offlineTime           | number        | Tracks elapsed time between successive user _inactivity_ timestamp and _resumed activity_ timestamp, in `elapsedHumanSeconds`.
+|            | offlineTime           | number        | Tracks elapsed time between `lastTick` and `firstTick` in `elapsedHumanSeconds`.
 |            | elapsedHumanSeconds   | number        | Tracks elapsed time in human seconds.
 | Other      | isRadioPlaying        | boolean       | Determines the state of `isDancing`. If `isRadioPlaying: true` then `isDancing: true`.
 |            | isMusicPlaying        | boolean       | Determines the state of music playback. 
@@ -146,7 +130,7 @@ Performance cap:
 
 ## Logic & Mechanics
 
-### Constant Decay (per game minute)
+### Decay (`decayTime`)
 if `isSleeping: false` then:
 - `hunger` +0.5
 - `energy` -0.5
