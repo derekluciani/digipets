@@ -1,0 +1,177 @@
+# Zustand – State Management for React
+
+Zustand is a small, fast, and scalable state-management solution using simplified flux principles. It provides a comfortable API based on hooks without boilerplate or opinions. The library handles React's challenging edge cases including the zombie child problem, React concurrency, and context loss between mixed renderers, making it one of the most robust state managers in the React ecosystem. The core philosophy is simplicity: no context providers, no reducers requirement, and hooks as the primary means of consuming state. The middleware system enables composable enhancements for persistence, devtools integration, and immutable updates with Immer.
+
+## React Store Hook (`create`)
+```typescript
+import { create } from 'zustand'
+
+interface BearState {
+  bears: number
+  increasePopulation: () => void
+  removeAllBears: () => void
+}
+
+const useBearStore = create<BearState>()((set) => ({
+  bears: 0,
+  increasePopulation: () => set((state) => ({ bears: state.bears + 1 })),
+  removeAllBears: () => set({ bears: 0 }),
+}))
+
+// Usage
+const bears = useBearStore((state) => state.bears)
+const increase = useBearStore((state) => state.increasePopulation)
+```
+
+## Vanilla Store (`createStore`)
+```typescript
+import { createStore } from 'zustand/vanilla'
+
+const store = createStore((set) => ({
+  count: 0,
+  increment: () => set((state) => ({ count: state.count + 1 })),
+}))
+
+const { getState, setState, subscribe } = store
+const unsub = subscribe((state, prevState) => console.log(state, prevState))
+```
+
+## Shallow Comparison (`useShallow`)
+Prevents re-renders when creating derived objects/arrays.
+
+```typescript
+import { useShallow } from 'zustand/react/shallow'
+
+const { nuts, honey } = useBearStore(
+  useShallow((state) => ({ nuts: state.nuts, honey: state.honey }))
+)
+```
+
+## Async Actions
+Zustand handles async natively.
+
+```typescript
+const useStore = create((set) => ({
+  data: null,
+  fetch: async (url) => {
+    const response = await fetch(url)
+    set({ data: await response.json() })
+  },
+}))
+```
+
+## Reading State in Actions (`get`)
+```typescript
+const useStore = create((set, get) => ({
+  count: 0,
+  action: () => {
+    const current = get().count
+    set({ count: current + 1 })
+  },
+}))
+```
+
+## Overwriting State
+Second argument `true` replaces state instead of merging.
+```typescript
+const useStore = create((set) => ({
+  clear: () => set({}, true) // Clears everything
+}))
+```
+
+## Middleware: Persist
+```typescript
+import { persist, createJSONStorage } from 'zustand/middleware'
+
+const useStore = create(
+  persist(
+    (set, get) => ({
+      fishes: 0,
+      addFish: () => set({ fishes: get().fishes + 1 }),
+    }),
+    {
+      name: 'food-storage',
+      storage: createJSONStorage(() => sessionStorage), // default: localStorage
+      partialize: (state) => ({ fishes: state.fishes }),
+    }
+  )
+)
+```
+
+## Middleware: Immer
+Immutable updates with mutable syntax.
+
+```typescript
+import { immer } from 'zustand/middleware/immer'
+
+const useStore = create(
+  immer((set) => ({
+    nested: { count: 0 },
+    inc: () => set((state) => {
+      state.nested.count += 1
+    }),
+  }))
+)
+```
+
+## Middleware: Devtools
+```typescript
+import { devtools } from 'zustand/middleware'
+
+const useStore = create(
+  devtools(
+    (set) => ({
+      count: 0,
+      inc: () => set((state) => ({ count: state.count + 1 }), undefined, 'inc'),
+    }),
+    { name: 'MyStore' }
+  )
+)
+```
+
+## Middleware: Subscribe with Selector
+```typescript
+import { subscribeWithSelector } from 'zustand/middleware'
+
+const useStore = create(subscribeWithSelector(() => ({ paw: true, fur: true })))
+
+// Fires only when specific selector changes
+useStore.subscribe(
+  (state) => state.paw,
+  (paw, prevPaw) => console.log('Paw changed')
+)
+```
+
+## TypeScript Syntax (with Middleware)
+Requires curried syntax `create<T>()(...)`.
+
+```typescript
+interface BearState {
+  bears: number
+  increase: (by: number) => void
+}
+
+const useBearStore = create<BearState>()(
+  devtools(
+    persist(
+      (set) => ({
+        bears: 0,
+        increase: (by) => set((state) => ({ bears: state.bears + by })),
+      }),
+      { name: 'bear-storage' }
+    )
+  )
+)
+```
+
+## Transient Updates (Performance)
+Update without re-rendering components.
+
+```typescript
+// Component
+const ref = useRef(useStore.getState().count)
+useEffect(() => useStore.subscribe(state => {
+  ref.current = state.count
+  // Direct DOM manipulation if needed
+}), [])
+```
