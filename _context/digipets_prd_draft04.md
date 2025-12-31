@@ -49,7 +49,7 @@ The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Re
 ### Store Schema
 | Category   | Key                   | Data Type     | Description                                               |
 |------------|-----------------------|---------------|-----------------------------------------------------------|
-| Metadata   | petType               | enum          | `Fox`,`Axolotl`; Determines `lifeExpectancy` value and base stats.
+| Metadata   | petType               | enum          | `Fox``Axolotl`; Determines `lifeExpectancy` value and base stats.
 |            | name                  | string        | User-defined
 |            | birthday              | date/time     | Timestamp recorded at the time of pet creation.
 |            | lastTick              | date/time     | Timestamp used to calculate 'Away Time' upon re-opening the app.
@@ -65,9 +65,8 @@ The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Re
 |            | mood                  | number        | `0–100`
 |            | energy                | number        | `0–100`
 |            | weight                | number        | `0–100`
-|            | health                | number        | `0–100`; Derived from `penaltyCount`.
-|            | fitness               | number        | Tracks `playing` frequency. Hidden from user.
-|            | attention             | number        | Tracks user response speed. Hidden from user.
+|            | healthPoints          | number        | `0–100`; Derived from `penaltyCount`. Displayed as "HP".
+|            | attention             | number        | `0–100`; Tracks user response speed. Hidden from user.
 | Status     | isIdle                | boolean       | 
 |            | isEating              | boolean       |
 |            | isPlaying             | boolean       |
@@ -90,6 +89,8 @@ The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Re
 |            | hungerTime            | number        | Tracks elapsed time between two successive eating events, in game minutes.
 |            | starvingTime          | number        | Tracks elapsed time while hunger = 100, in game minutes.
 |            | moodTime              | number        | Tracks elapsed time while mood ≤ 10, in game minutes.
+|            | fitnessTime           | number        | Tracks a pet's lifetime total of exercise time, in game minutes.
+|            | responseTime          | number        | Tracks elapsed time it takes a user to take action once a pet `isWhining: true`, in game minutes.
 |            | dirtyTime             | number        | Tracks elapsed time between state change from `isDirty: true` -> `isDirty: false`, in game minutes.
 |            | sickTime              | number        | Tracks elapsed time between state change from `isSick: true` -> `isSick: false`, in game minutes.
 |            | sleepTime             | number        | Tracks elapsed time while `isSleeping: true`.
@@ -105,10 +106,10 @@ The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Re
 The "Engine" runs on a **Delta-Time Loop**. Instead of just counting seconds, it calculates how much "Game Time" has passed since the last update.
 
 ### Delta-Time
-- Only simulate fully elapsed game minutes. Ignore partial time.
-  ```TypeScript
-  deltaTime = floor((now - lastTickTimestamp) / 1000)
-  ````
+Only simulate fully elapsed game minutes. Ignore partial time.
+```TypeScript
+deltaTime = floor((now - lastTickTimestamp) / 1000)
+````
 ### State Transition Constraints
 To prevent logic errors (e.g., a pet eating while asleep), the Finite State Machine (FSM) follows these rules:
 - **Interrupts**: Any active pet `status` (ie. `PLAYING`) must complete or be timed out before `status` returns to `isIdle: true`.
@@ -131,31 +132,32 @@ Performance cap:
 ## Logic & Mechanics
 
 ### Decay (`decayTime`)
-if `isSleeping: false` then:
-- `hunger` +0.5
-- `energy` -0.5
-- `mood` -0.5
+If `isSleeping: false` then:
+- `hunger` +1
+- `energy` -1
+- `mood` -1
 
 ### Health Neglect
 **Neglect Conditions:**
 1. `hunger` = 100
 2. `starvingTime` ≥ 180 game minutes 
-2. `isAngry` = true
+3. `isAngry` = true
 4. `dirtyTime` ≥ 180 game minutes
 5. `sickTime` ≥ 180 game minutes
 6. `hungerTime` ≥ 180 game minutes
-5. `isVomiting` = true
+7. `weight` = 0 or 100
+8. `isVomiting` = true
 
 **Penalty Logic:**
-- For each active neglect condition: +1 `penaltyCount` per 60 game minutes.
-- Health Damage: For every 1 `penaltyCount` -> -1 `health`.
-- Health Recovery: No neglect conditions -> `penaltyCount` -1 per 120 game minutes.
+- +1 `penaltyCount` for each neglect condition, per `decayTime`.
+- Health Damage: For every 1 `penaltyCount` -> -1 `healthPoints`.
+- Health Recovery: If no neglect conditions -> +1 `healthPoints`.
 
 ### Death Conditions
 `isDead: true` if:
 1. `age` > `lifeExpectancy` and `caretakerScore` < 95 at the end of Adult phase.
 2. `age` > `lifeExpectancy` and `isSpecial: true`.
-3. `health` ≤ 0.
+3. `healthPoints` ≤ 0.
 4. `hunger` = 100 for ≥ 720 game minutes.
 5. `mood` ≤ 10 for ≥ 720 game minutes.
 
@@ -173,59 +175,59 @@ if `isSleeping: false` then:
 **Age** 
 - Displayed as an `integer` (pet year).
 - Age counter can only increment by +1.
-- Age progression is constant and cannot be altered by any pet health metrics.
+- Age progression is constant and cannot be altered by any pet healthPoints metrics.
 - Start value: `0` years old
 
 **Weight**
-  - Displayed as an enum: `skinny`, `regular`, `chubby`, `fat`
-  - Value decreases by -1 per 120 game minutes without feeding.
-  - If value is between 0-24 -> state=_skinny_
-  - If value is between 25-50 -> state=_regular_
-  - If value is between 51-75 -> state=_chubby_
-  - If value is between 76-100 -> state=_fat_ 
-  - `skinny` or `fat` weight status negatively affects a pet health.
-  - Start values: Fox=`skinny`, Axolotl=`chubby`
+- Displayed as an enum: `skinny`, `regular`, `chubby`, `fat`
+- Value decreases by -1 per every 240 game minutes without eating.
+- If value is between 0-24 -> state=_skinny_
+- If value is between 25-50 -> state=_regular_
+- If value is between 51-75 -> state=_chubby_
+- If value is between 76-100 -> state=_fat_
+- Start values: Fox=`35`, Axolotl=`65`
 
 **Hunger**
-  - Displayed as an enum: `low`, `moderate`, `high`
-  - If value is between 0-33 -> state=_low_
-  - If value is between 34–67 -> state=_moderate_
-  - If value is between 68-89 -> state=_high_
-  - If value is ≥90 -> state=_high_ and _whining_
-  - If value = 100 for ≥180 game minutes -> state=_high_ and _whining_
-  - If value is 0, the pet will refuse to eat if fed.
-  - Start value: `99`
+- Displayed as an enum: `low`, `moderate`, `high`
+- If value is between 0-33 -> state=_low_
+- If value is between 34–67 -> state=_moderate_
+- If value is between 68-89 -> state=_high_
+- If value is ≥ 90 -> state=_high_ and _whining_
+- If value is 0, the pet will refuse to eat if fed.
+- Start value: `90`
 
 **Mood**
-  - Displayed as an enum: `sick`, `sad`, `angry`, `neutral`, `happy`
-  - If value = 0 for ≥ 180 game minutes -> state=_angry_ and _whining_
-  - If value is between 0-33 -> state=_sad_ or _sick_
-  - If value is between 34-67 -> state=_neutral_
-  - If value is between 68-100 -> state=_happy_
-  - Start value: `33`
+- Displayed as an enum: `sick`, `sad`, `angry`, `calm`, `happy`
+- If value = 0 for ≥ 180 game minutes -> state=_angry_ and _whining_
+- If value is between 0-33 -> state=_sad_ or _sick_
+- If value is between 34-67 -> state=_calm_
+- If value is between 68-100 -> state=_happy_
+- Start value: `33`
 
 **Energy**
-  - Displayed as an enum: `low`, `moderate`, `high`
-  - If value is between 0-10 -> state=_low_ and _whining_
-  - If value is between 11–33 -> state=_low_
-  - If value is between 34–67 -> state=_moderate_
-  - If value is between 68-89 -> state=_high_
-  - If value is between 90-100 -> state=_high_ and _whining_
-  - Start value: `10`
+- Displayed as an enum: `low`, `moderate`, `high`
+- If value is between 0-10 -> state=_low_ and _whining_
+- If value is between 11–33 -> state=_low_
+- If value is between 34–67 -> state=_moderate_
+- If value is between 68-89 -> state=_high_
+- If value is between 90-100 -> state=_high_ and _whining_
+- Start value: `10`
 
 **Health**
-  - Displayed as an enum: `critical`, `poor`, `fair`, `great` 
-  - Start value: `50`
+- Displayed as an enum: `critical`, `poor`, `fair`, `great`
+- If value is between 0-24 -> state=_critical_
+- If value is between 25-50 -> state=_poor_
+- If value is between 51-75 -> state=_fair_
+- If value is between 76-100 -> state=_great_
+- Start value: `55`
   
-### Hidden from user
 **Fitness**
-  - This metric tracks the frequency and amount of a pet's play time.
-  - Frequent play time positively affects pet health.
+- `fitnessTime` is to be used as an input for the `caretakerScore` calculation. Longer times result in a higher `caretakerScore`.
+- This metric is hidden from the user.
 
 **Attention**
-  - This metric tracks the frequency and response time of the user's actions (attention) given to the pet.
-  - More frequent action and shorter response times positively affect pet health.
-  - Less frequent action and longer response times negatively affect pet health.
+- `responseTime` is to be used as an input for the `caretakerScore` calculation. Shorter times result in a higher `caretakerScore`.
+- This metric is hidden from the user.
 
 ## Pet Statuses
 What the pet is doing.
@@ -335,23 +337,22 @@ The user/player can accomplish the following achievements as a tracked checklist
   - Return to Start Screen (goto Start Screen)
 
 ## APPENDIX
-  
-  ### Caretaker Score formula
-  $ \frac{(Mood \times 0.4) + (Hunger_{\text{inverted}} \times 0.3) + (Fitness \times 0.2) + (Attention \times 0.1)}{TotalTicks} \times 100 $
-  
-  Note: $ (Hunger_{\text{inverted}}) = (100-currentHunger) $
-  
-  ### Features to omit
-  1. Aid / Medicine
-  2. Social Features
-  3. Generations / Inheritance
-  4. Skills / Learn new tricks
-  5. Sound effects (button clicks, alerts, etc.)
+
+### Caretaker Score purpose
+1. Achievements
+2. Special phase eligibility
+3. End-of-life summary
+
+### Caretaker Score formula
+$ \frac{(Mood \times 0.4) + (Hunger_{\text{inverted}} \times 0.3) + (Fitness \times 0.2) + (Attention \times 0.1)}{TotalTicks} \times 100 $
+
+Note: $ (Hunger_{\text{inverted}}) = (100-currentHunger) $
+
+### Features to omit
+1. Aid / Medicine
+2. Social Features
+3. Generations / Inheritance
+4. Skills / Learn new tricks
+5. Sound effects (button clicks, alerts, etc.)
 
 # ! End of Document
-
-<!--## UI
-## App Folder Structure 
-## App Development Process & Task Checklist
-### Phase 1 - title
-### Phase 2 - title-->
