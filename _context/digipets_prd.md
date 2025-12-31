@@ -1,7 +1,7 @@
 # Digipets | Product Requirements Document 
 
 ## Objective  
-* Build a functional **Tamagotchi-inspired Web App** using React and Zustand.The application operates as a **real-time finite state machine**, where pet state is driven by a delta-time loop (accounting for time decay) and direct player intervention.
+- Build a functional **Tamagotchi-inspired Web App** using React and Zustand.The application operates as a **real-time finite state machine**, where pet state is driven by a delta-time loop (accounting for time decay) and direct player intervention.
 
 ## Tech Stack  
 - **Frontend:** Vite + React  
@@ -16,7 +16,7 @@ Time proceeds linearly. 1 Game Day = 1 Pet Year.
 
 | Unit           | Game Time   | Real Time  | Notes                     |
 | -------------- | ----------- | ---------- | ------------------------- |
-| **Tick**       | 1 minutes   | 1 sec      | `baseTime`                |
+| **Tick**       | 1 minute    | 1 sec      | `baseTime`                |
 | **Hour**       | 60 minutes  | 60 sec     | `decayTime`               |
 | **Day/Year**   | 24 hours    | 24 minutes | `ageTime`                 |
 
@@ -48,9 +48,10 @@ The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Re
 - **Persistence:** The game state must be saved to `localStorage` every 5 seconds (real time) so players can return to their pet later.
 
 ### Store Schema
+**!NOTE**: This list may be missing some key line items. Please add any that are required for the app.
 | Category   | Key                   | Data Type     | Description                                               |
 |------------|-----------------------|---------------|-----------------------------------------------------------|
-| Metadata   | petType               | enum          | `Fox``Axolotl`; Determines `lifeExpectancy` value and base stats.
+| Metadata   | petType               | enum          | `Fox`, `Axolotl`; Determines `lifeExpectancy` value and base stats.
 |            | name                  | string        | User-defined
 |            | birthday              | date/time     | Timestamp recorded at the time of pet creation.
 |            | lastTick              | date/time     | Timestamp used to calculate 'Away Time' upon re-opening the app.
@@ -66,10 +67,10 @@ The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Re
 |            | mood                  | number        | `0–100`
 |            | energy                | number        | `0–100`
 |            | weight                | number        | `0–100`
-|            | healthPoints          | number        | `0–100`; Derived from `penaltyCount`. Displayed as "HP".
-|            | attention             | number        | `0–100`; Tracks user response speed. Hidden from user.
+|            | healthPoints          | number        | `0–100`
 | Status     | isIdle                | boolean       | 
 |            | isEating              | boolean       |
+|            | isPooping             | boolean       |
 |            | isPlaying             | boolean       |
 |            | isDancing             | boolean       |
 |            | isSleeping            | boolean       |
@@ -128,11 +129,12 @@ Performance cap:
 
 ## Logic & Mechanics
 
-### Decay (`decayTime`)
-If `isSleeping: false` then:
+### Decay
+per `decayTime`:
 - `hunger` +1
 - `energy` -1
 - `mood` -1
+Note: Sleeping is the only status that halts Decay. Sleeping uses the action table as the replacement for Decay.
 
 ### Health Neglect
 **Neglect Conditions:**
@@ -165,7 +167,7 @@ If `isSleeping: false` then:
 | Feed         | -10         | +10        | +5         | +5           | +1         |
 | Play         | +10!        | -2!        | +15!       | -5!          | --         | 
 | Sleep        | +10!        | -5         | +15        | +10!         | --         | 
-| Clean        | --          | --         | --         | --           | --         | 
+| Clean        | --          | --         | +10        | --           | --         | 
 | Radio        | +5!         | -1!        | +5!        | -5!          | --         | 
 
 ## Pet Vitals 
@@ -194,9 +196,9 @@ If `isSleeping: false` then:
 - Start value: `90`
 
 **Mood**
-- Displayed as an enum: `sick`, `sad`, `angry`, `calm`, `happy`
+- Displayed as an enum: `sad`, `angry`, `calm`, `happy`
 - If value = 0 for ≥ 180 game minutes -> state=_angry_ and _whining_
-- If value is between 0-33 -> state=_sad_ or _sick_
+- If value is between 0-33 -> state=_sad_
 - If value is between 34-67 -> state=_calm_
 - If value is between 68-100 -> state=_happy_
 - Start value: `33`
@@ -211,7 +213,7 @@ If `isSleeping: false` then:
 - Start value: `10`
 
 **Health**
-- Displayed as a `number` and enum: `critical`, `poor`, `fair`, `great`
+- Displayed as a "HP" `number` and enum: `critical`, `poor`, `fair`, `great`
 - If value is between 0-24 -> state=_critical_
 - If value is between 25-50 -> state=_poor_
 - If value is between 51-75 -> state=_fair_
@@ -245,14 +247,16 @@ What the pet is doing.
 - `dirtyTime` timer begins if `isDirty` value changes from `false` to `true`.
   - If the pet is cleaned, `isDirty: false` and `dirtyTime` timer resets.
 - The duration of this status, when active, is `6` seconds (real time) before resolving to `isIdle: true`.
-- User Actions are disabled during sleep.
+- User Actions are active during this status.
 
 **Vomiting**
-- Occurs if Hunger = 100 or 0 for ≥ 6 game hours, or if fed 6 times in 6 seconds (real time).
+- Occurs if pet is fed 6 times in 6 seconds (real time).
 - When vomiting occurs:
+  - `isSick: true`
+  - `isDirty: true`
   - hunger `0`
-  - mood `0` -> state=_sick_
-  - energy `33`
+  - mood `0`
+  - energy `10`
 - The duration of this status, when active, is `6` seconds (real time) before resolving to `isIdle: true`.
 - User Actions are disabled during this status.
 
@@ -266,7 +270,7 @@ What the pet is doing.
 - User Actions are active during this status.   
 
 **Sleeping**
-- `ifSleeping: true`:
+- `isSleeping: true`:
   - and `isDayTime: true`, pet sleeps for 60 game minutes before resolving to `isIdle: true`.
   - and `isNightTime: true`, pet sleeps for 360 game minutes before resolving to `isIdle: true`. 
 - User Actions are disabled during this status.
@@ -275,7 +279,7 @@ What the pet is doing.
 - `isDancing` can only be true if `isRadioPlaying: true`.
 - The state of `isRadioPlaying` is toggled via a UI button, Default value: `false`.
   - if `isRadioPlaying: true` -> `isMusicPlaying: true`.
-  - Music source asset: [filename tbd](filepath)
+  - Music source asset: [radio_song_loop.mp3](radio_song_loop.mp3)
   - Music playback will loop continuously unless toggled to stop by user.
   - Music playback must never interrupt gameplay state.
 - User Actions are active during this status.  
@@ -285,8 +289,9 @@ What the pet is doing.
 
 ## Pet Conditions
 What’s wrong with the pet.
+
 **Sick**
-- `isSick: true` can only change to `false` if mood ≥ `34`.
+- Once a pet becomes `isSick: true`, it must be cleaned and put to sleep to become `isSick: false`.
 
 ## Pet Expressions
 How the pet is feeling. Expressions are derived from other states.
@@ -310,7 +315,7 @@ The user/player can accomplish the following achievements as a tracked checklist
 ## UI Flow
 1. **Start Screen**
   - Create new pet (goto -> New Pet Screen)
-  - Choose existing pet (goto -> Game Screen)
+  - Choose existing pet (Active pets are displayed as selectable list items) (When selected, goto -> Game Screen)
   - See Achievements (goto -> [Player Achievements](#player-achievements) Screen)
 2. **New Pet Screen**
   - Enter pet name
@@ -332,21 +337,23 @@ The user/player can accomplish the following achievements as a tracked checklist
       - use `html2canvas` to allow the user to export summary card as a JPG image.
   - Return to Start Screen (goto Start Screen)
 
-## APPENDIX
-
-### Caretaker Score purpose
+## Caretaker Score purpose
 1. Achievements
 2. Special phase eligibility
 3. End-of-life summary
 
-### Caretaker Score Formula
+## Caretaker Score Formula
 [See Formula Code](caretakerscore-formula.ts)
 
-### Features to omit
+## Features to omit
 1. Aid / Medicine
 2. Social Features
 3. Generations / Inheritance
 4. Skills / Learn new tricks
 5. Sound effects (button clicks, alerts, etc.)
+
+# Implementation Decisions "Addendum"
+**Important**: Please read: [PRD Addendum Instructions](digitpets_prd_addendum.md)
+- The addendum document addresses critical ambiguities so the implementer can build a logically consistent app without any drifting.  
 
 # ! End of Document

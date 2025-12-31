@@ -11,3 +11,4 @@
 - Yuo will ensure the app is fully functional in modern browsers.
 - You will ensure all interactions and state transitions respond in real time.
 - You will execute all refinements if requested.
+- Ignore all files located in [_ignore](_ignore) and [_ref](_ref) directories.
