@@ -45,6 +45,7 @@ Time proceeds linearly. 1 Game Day = 1 Pet Year.
 
 ## State Management
 The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Reference: [Zustand feature docs](zustand-docs-mini.txt)
+- **Persistence:** The game state must be saved to `localStorage` every 5 seconds (real time) so players can return to their pet later.
 
 ### Store Schema
 | Category   | Key                   | Data Type     | Description                                               |
@@ -90,7 +91,7 @@ The Zustand Store is the Single Source of Truth, persisted to `localStorage`. Re
 |            | starvingTime          | number        | Tracks elapsed time while hunger = 100, in game minutes.
 |            | moodTime              | number        | Tracks elapsed time while mood ≤ 10, in game minutes.
 |            | fitnessTime           | number        | Tracks a pet's lifetime total of exercise time, in game minutes.
-|            | responseTime          | number        | Tracks elapsed time it takes a user to take action once a pet `isWhining: true`, in game minutes.
+|            | responseTime          | number        | Tracks a pet's lifetime total time pet spent whining unresolved, in game minutes.
 |            | dirtyTime             | number        | Tracks elapsed time between state change from `isDirty: true` -> `isDirty: false`, in game minutes.
 |            | sickTime              | number        | Tracks elapsed time between state change from `isSick: true` -> `isSick: false`, in game minutes.
 |            | sleepTime             | number        | Tracks elapsed time while `isSleeping: true`.
@@ -110,10 +111,6 @@ Only simulate fully elapsed game minutes. Ignore partial time.
 ```TypeScript
 deltaTime = floor((now - lastTickTimestamp) / 1000)
 ````
-### State Transition Constraints
-To prevent logic errors (e.g., a pet eating while asleep), the Finite State Machine (FSM) follows these rules:
-- **Interrupts**: Any active pet `status` (ie. `PLAYING`) must complete or be timed out before `status` returns to `isIdle: true`.
-- **Action Looking**: if `isSleeping: true`, then all user action UI is disabled.
   
 ### Offline Simulation Rules
 When a user resumes after inactivity:
@@ -214,7 +211,7 @@ If `isSleeping: false` then:
 - Start value: `10`
 
 **Health**
-- Displayed as an enum: `critical`, `poor`, `fair`, `great`
+- Displayed as a `number` and enum: `critical`, `poor`, `fair`, `great`
 - If value is between 0-24 -> state=_critical_
 - If value is between 25-50 -> state=_poor_
 - If value is between 51-75 -> state=_fair_
@@ -229,7 +226,7 @@ If `isSleeping: false` then:
 - `responseTime` is to be used as an input for the `caretakerScore` calculation. Shorter times result in a higher `caretakerScore`.
 - This metric is hidden from the user.
 
-## Pet Statuses
+## Pet Status
 What the pet is doing.
 
 **Idle**
@@ -237,21 +234,27 @@ What the pet is doing.
   - (40%) _standing_
   - (60%) _watching tv_
 - The duration of each state, when active, is `10` seconds (real time) before sampling next possible active state.
+- User Actions are active during this status. 
 
 **Eating**
-  - Pet will eat if their hunger is between 1-100.
+- Pet will eat if hunger is between 1-100.
+- The duration of this status, when active, is `6` seconds (real time) before resolving to `isIdle: true`.
+- User Actions are disabled during this status.
 
 **Pooping**
-  - Pet poops after every 3 feedings.
-  - `dirtyTime` timer begins if `isDirty` value changes from `false` to `true`.
-    - If the pet is cleaned, `isDirty: false` and `dirtyTime` timer resets.
+- `dirtyTime` timer begins if `isDirty` value changes from `false` to `true`.
+  - If the pet is cleaned, `isDirty: false` and `dirtyTime` timer resets.
+- The duration of this status, when active, is `6` seconds (real time) before resolving to `isIdle: true`.
+- User Actions are disabled during sleep.
 
 **Vomiting**
-- Occurs if Hunger = 100 for ≥ 6 game hours, or if fed 6 times in 6 seconds (real time).
+- Occurs if Hunger = 100 or 0 for ≥ 6 game hours, or if fed 6 times in 6 seconds (real time).
 - When vomiting occurs:
   - hunger `0`
   - mood `0` -> state=_sick_
   - energy `33`
+- The duration of this status, when active, is `6` seconds (real time) before resolving to `isIdle: true`.
+- User Actions are disabled during this status.
 
 **Playing**
 - Randomly switches between states:
@@ -259,50 +262,42 @@ What the pet is doing.
   - (50%) _chasing ball_
 - The duration of each state, when active, is `10` seconds (real time) before sampling next possible active state.
 - A pet will play continuously unless:
-  - energy `≤ 33` or the user interrupts the pet with a different action. 
+  - energy `≤ 33` or the user interrupts the pet with a different action.
+- User Actions are active during this status.   
 
 **Sleeping**
 - `ifSleeping: true`:
-  - and `isDayTime: true`, pet sleeps for 60 game minutes.
-  - and `isNightTime: true`, pet sleeps for 360 game minutes. 
-  - User Actions are disabled during sleep.
+  - and `isDayTime: true`, pet sleeps for 60 game minutes before resolving to `isIdle: true`.
+  - and `isNightTime: true`, pet sleeps for 360 game minutes before resolving to `isIdle: true`. 
+- User Actions are disabled during this status.
 
 **Dancing**
 - `isDancing` can only be true if `isRadioPlaying: true`.
 - The state of `isRadioPlaying` is toggled via a UI button, Default value: `false`.
   - if `isRadioPlaying: true` -> `isMusicPlaying: true`.
-  - Music source asset: [filename](filepath)
+  - Music source asset: [filename tbd](filepath)
   - Music playback will loop continuously unless toggled to stop by user.
   - Music playback must never interrupt gameplay state.
+- User Actions are active during this status.  
 
 **Dead**
+- If `isDead: true` then transition to **Death Screen**.
 
 ## Pet Conditions
 What’s wrong with the pet.
 **Sick**
-- `isSick: true` can only change to `false` if mood ≥ `34`. 
-
-**Dirty**
+- `isSick: true` can only change to `false` if mood ≥ `34`.
 
 ## Pet Expressions
-How the pet is feeling. Expressions are derived from other states and must never block actions or state transitions and is computed from vitals each tick.
+How the pet is feeling. Expressions are derived from other states.
 
 **Whining**
-- if `isWhining: true` then an alert style UI notification is displayed.
+- if `isWhining: true` then an alert style UI notification is displayed. Notifications are cleared when the condition that triggered them is resolved.
 
+**Dirty**
 **Angry**
-- Triggered if:
-
 **Sad**
-- Triggered if:
-
 **Happy**
-- Triggered if:
-
-## Additional Features
-**Keepsake Feature:** Upon death, use `html2canvas` to allow the user to export a summary card of their pet's final stats, caretaker score and appearance as a JPG image.
-
-**Persistence:** The game state must be saved to `localStorage` every 5 seconds (real time) so players can return to their pet later.
 
 ## Player Achievements
 The user/player can accomplish the following achievements as a tracked checklist:
@@ -333,7 +328,8 @@ The user/player can accomplish the following achievements as a tracked checklist
     - Lifespan summary
     - Final pet vital stats
     - Final Caretaker score
-    - Export Summary Card as a downloadable JPG image file
+    - Export Summary Card as a downloadable file
+      - use `html2canvas` to allow the user to export summary card as a JPG image.
   - Return to Start Screen (goto Start Screen)
 
 ## APPENDIX
@@ -343,10 +339,8 @@ The user/player can accomplish the following achievements as a tracked checklist
 2. Special phase eligibility
 3. End-of-life summary
 
-### Caretaker Score formula
-$ \frac{(Mood \times 0.4) + (Hunger_{\text{inverted}} \times 0.3) + (Fitness \times 0.2) + (Attention \times 0.1)}{TotalTicks} \times 100 $
-
-Note: $ (Hunger_{\text{inverted}}) = (100-currentHunger) $
+### Caretaker Score Formula
+[See Formula Code](caretakerscore-formula.ts)
 
 ### Features to omit
 1. Aid / Medicine
