@@ -57,6 +57,7 @@ const INITIAL_PET_STATE: Omit<PetState, "id" | "name" | "petType" | "lifeExpecta
     dirtyTime: 0,
     sickTime: 0,
     sleepTime: 0,
+    eatingTime: 0,
     offlineTime: 0,
 
     // Settings
@@ -173,6 +174,7 @@ export const usePetStore = create<PetStore>()(
                             [petId]: {
                                 ...pet,
                                 status: PetStatus.Eating,
+                                eatingTime: 0,
                                 hunger: newHunger,
                                 weight: newWeight,
                                 mood: newMood,
@@ -188,6 +190,20 @@ export const usePetStore = create<PetStore>()(
                 set((state: PetStore) => {
                     const pet = state.pets[petId];
                     if (!pet || pet.status === PetStatus.Dead || pet.status === PetStatus.Sleeping) return state;
+
+                    // Toggle off if already playing
+                    if (pet.status === PetStatus.Playing) {
+                        return {
+                            pets: {
+                                ...state.pets,
+                                [petId]: {
+                                    ...pet,
+                                    status: PetStatus.Idle,
+                                }
+                            }
+                        };
+                    }
+
                     if (pet.energy <= 33) return state;
 
                     return {

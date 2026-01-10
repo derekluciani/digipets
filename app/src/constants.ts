@@ -2,8 +2,10 @@ import { PetType } from "./types/game";
 
 export const GAME_CONSTANTS = {
     MINUTES_PER_DAY: 1440,
-    DAY_PHASE_LIMIT: 720,
+    NIGHT_START_MINUTE: 1320, // 10:00 PM
+    NIGHT_END_MINUTE: 360, // 6:00 AM
     DECAY_INTERVAL: 60, // Game minutes (1 hour)
+    EATING_DURATION_MINUTES: 12,
 
     // Real time seconds per game minute
     REAL_SECONDS_PER_GAME_MINUTE: 0.25,
@@ -30,6 +32,13 @@ export const GAME_CONSTANTS = {
     // Life Expectancy
     LIFE_EXPECTANCY: {
         [PetType.Fox]: 10,
-        [PetType.Axolotl]: 15,
     },
 };
+
+export function isNightMinuteOfDay(minuteOfDay: number): boolean {
+    const normalized = ((minuteOfDay % GAME_CONSTANTS.MINUTES_PER_DAY) + GAME_CONSTANTS.MINUTES_PER_DAY) % GAME_CONSTANTS.MINUTES_PER_DAY;
+    return (
+        normalized >= GAME_CONSTANTS.NIGHT_START_MINUTE ||
+        normalized < GAME_CONSTANTS.NIGHT_END_MINUTE
+    );
+}

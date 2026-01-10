@@ -6,20 +6,18 @@ import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 export const NewPetScreen = () => {
     const navigate = useNavigate();
     const createPet = usePetStore((state) => state.createPet);
 
     const [name, setName] = useState("");
-    const [type, setType] = useState<PetType>(PetType.Fox);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim()) return;
 
-        createPet(name, type);
+        createPet(name, PetType.Fox);
         navigate("/game");
     };
 
@@ -44,16 +42,10 @@ export const NewPetScreen = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="type">Pet Type</Label>
-                            <Select value={type} onValueChange={(val) => setType(val as PetType)}>
-                                <SelectTrigger id="type">
-                                    <SelectValue placeholder="Select type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={PetType.Fox}>Fox (10 years)</SelectItem>
-                                    <SelectItem value={PetType.Axolotl}>Axolotl (15 years)</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Label>Pet Type</Label>
+                            <div className="rounded-md border border-input bg-white/60 px-3 py-2 text-sm">
+                                Fox (10 years)
+                            </div>
                         </div>
 
                         <div className="flex gap-4 pt-4">

@@ -1,5 +1,5 @@
 import { type PetState, PetStatus } from "../types/game";
-import { GAME_CONSTANTS } from "../constants";
+import { GAME_CONSTANTS, isNightMinuteOfDay } from "../constants";
 import { computeCaretakerScore, qualifiesForSpecialPhase, type CaretakerScoreInputs } from "./caretakerScore";
 
 /**
@@ -118,6 +118,13 @@ export function simulateOneMinute(pet: PetState): PetState {
         next.sleepTime = 0;
     }
 
+    // Eating
+    if (next.status === PetStatus.Eating) {
+        next.eatingTime = (next.eatingTime ?? 0) + 1;
+    } else {
+        next.eatingTime = 0;
+    }
+
     // Whining / Response Time
     // isWhining definition: hunger >= 90 OR energy <= 10 OR (mood == 0 && moodTime >= 180) OR mood <= 10
     const isWhining =
@@ -143,7 +150,7 @@ export function simulateOneMinute(pet: PetState): PetState {
     // This implies Sleep status has a duration.
     // We need to track how long they've been sleeping.
     if (next.status === PetStatus.Sleeping) {
-        const isNight = next.minuteOfDay >= GAME_CONSTANTS.DAY_PHASE_LIMIT;
+        const isNight = isNightMinuteOfDay(next.minuteOfDay);
         const sleepDuration = isNight ? 360 : 60;
         if (next.sleepTime >= sleepDuration) {
             next.status = PetStatus.Idle;
@@ -154,6 +161,12 @@ export function simulateOneMinute(pet: PetState): PetState {
     // 5. Playing Auto-Stop
     if (next.status === PetStatus.Playing && next.energy <= 33) {
         next.status = PetStatus.Idle;
+    }
+
+    // 5b. Eating Auto-Stop
+    if (next.status === PetStatus.Eating && next.eatingTime >= GAME_CONSTANTS.EATING_DURATION_MINUTES) {
+        next.status = PetStatus.Idle;
+        next.eatingTime = 0;
     }
 
     // 6. Death Conditions (Constant Check)

@@ -45,23 +45,25 @@ export const StartScreen = () => {
                         petList.map((pet) => (
                             <Card key={pet.id} className="cursor-pointer hover:bg-neutral-50 transition-colors" onClick={() => handleSelectPet(pet.id)}>
                                 <CardHeader className="p-4">
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle className="text-lg">{pet.name}</CardTitle>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-sm font-medium text-muted-foreground">{pet.petType}</span>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 -mr-2"
-                                                onClick={(e) => handleDeletePet(e, pet.id, pet.name)}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+                                        <span className="text-2xl" aria-label="Fox" role="img">🦊</span>
+
+                                        <div className="min-w-0">
+                                            <CardTitle className="text-lg truncate">{pet.name}</CardTitle>
+                                            <CardDescription>
+                                                Age: {Math.floor(pet.age)} | Status: {pet.status}{pet.isDead ? " (Deceased)" : ""}
+                                            </CardDescription>
                                         </div>
+
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                            onClick={(e) => handleDeletePet(e, pet.id, pet.name)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                     </div>
-                                    <CardDescription>
-                                        Age: {Math.floor(pet.age)} | Status: {pet.status}{pet.isDead ? " (Deceased)" : ""}
-                                    </CardDescription>
                                 </CardHeader>
                             </Card>
                         ))

@@ -70,6 +70,32 @@ export const DeathScreen = () => {
                         <span>Rank:</span>
                         <span>{finalGrade}</span>
                     </div>
+
+                    <div className="border-t pt-3 mt-3">
+                        <div className="text-sm font-semibold mb-2 text-muted-foreground">Final Vitals</div>
+                        <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                                <span>Hunger</span>
+                                <span className="font-mono font-semibold">{Math.round(pet.hunger)}/100</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Energy</span>
+                                <span className="font-mono font-semibold">{Math.round(pet.energy)}/100</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Mood</span>
+                                <span className="font-mono font-semibold">{Math.round(pet.mood)}/100</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Health</span>
+                                <span className="font-mono font-semibold">{Math.round(pet.healthPoints)}/100</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Weight</span>
+                                <span className="font-mono font-semibold">{Math.round(pet.weight)}/100</span>
+                            </div>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 

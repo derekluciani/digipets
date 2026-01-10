@@ -2,7 +2,6 @@ export type PetId = string;
 
 export const PetType = {
     Fox: "Fox",
-    Axolotl: "Axolotl",
 } as const;
 
 export type PetType = (typeof PetType)[keyof typeof PetType];
@@ -63,6 +62,7 @@ export interface PetState {
     dirtyTime: number;
     sickTime: number;
     sleepTime: number;
+    eatingTime: number;
     offlineTime: number; // real time seconds
 
     // Settings
