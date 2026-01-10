@@ -19,6 +19,25 @@ export const PetStatus = {
 
 export type PetStatus = (typeof PetStatus)[keyof typeof PetStatus];
 
+export const CauseOfDeath = {
+    OldAge: "OldAge",
+    Sickness: "Sickness", // Health <= 0
+    Starvation: "Starvation", // Hunger = 100 for too long
+    Depression: "Depression", // Mood <= 10 for too long
+} as const;
+
+export type CauseOfDeath = (typeof CauseOfDeath)[keyof typeof CauseOfDeath];
+
+export const PetPhase = {
+    Baby: "Baby",
+    Toddler: "Toddler",
+    Teen: "Teen",
+    Adult: "Adult",
+    Special: "Special",
+} as const;
+
+export type PetPhase = (typeof PetPhase)[keyof typeof PetPhase];
+
 export interface PetState {
     // Metadata
     id: PetId;
@@ -29,7 +48,9 @@ export interface PetState {
     lastSimulatedAt: number; // Timestamp (ms)
 
     // Status
+    phase: PetPhase;
     status: PetStatus;
+    causeOfDeath?: CauseOfDeath;
 
     // Vitals (0-100)
     age: number; // Game years (increments every day)
@@ -63,6 +84,8 @@ export interface PetState {
     sickTime: number;
     sleepTime: number;
     eatingTime: number;
+    poopTime: number;
+    vomitTime: number;
     offlineTime: number; // real time seconds
 
     // Settings

@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import html2canvas from "html2canvas";
 import { Download } from "lucide-react";
-// import { PetState } from "../../types/game";
+import { PetPhase } from "../../types/game";
 
 export const DeathScreen = () => {
     const navigate = useNavigate();
@@ -47,6 +47,20 @@ export const DeathScreen = () => {
 
     const finalGrade = scoreGrade(pet.caretakerScore || 0);
 
+    const formatCause = (cause?: string) => {
+        if (!cause) return "Unknown";
+        if (cause === "OldAge") return "Old Age";
+        return cause;
+    };
+
+    const phaseEmojis: Record<PetPhase, string> = {
+        [PetPhase.Baby]: "🍼",
+        [PetPhase.Toddler]: "🧸",
+        [PetPhase.Teen]: "🧢",
+        [PetPhase.Adult]: "🦊",
+        [PetPhase.Special]: "🦄",
+    };
+
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 p-4 text-white">
             <h1 className="text-4xl font-bold mb-8 text-red-500">GAME OVER</h1>
@@ -60,7 +74,14 @@ export const DeathScreen = () => {
                 <CardContent className="space-y-2 border-t pt-4">
                     <div className="flex justify-between">
                         <span>Lifespan:</span>
-                        <span className="font-bold">{pet.age} Years</span>
+                        <span className="font-bold">
+                            <span className="mr-2">{phaseEmojis[pet.phase]}</span>
+                            {pet.age} Years
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>Cause:</span>
+                        <span className="font-bold text-red-600">{formatCause(pet.causeOfDeath)}</span>
                     </div>
                     <div className="flex justify-between text-yellow-600">
                         <span>Caretaker Score:</span>

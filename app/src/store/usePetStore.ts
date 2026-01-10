@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { v4 as uuidv4 } from "uuid";
-import { type PetState, type PetType, PetStatus, type GameState } from "../types/game";
+import { type PetState, type PetType, PetStatus, type GameState, PetPhase } from "../types/game";
 import { GAME_CONSTANTS } from "../constants";
 import { simulateOneMinute } from "../logic/simulation";
 
@@ -25,6 +25,7 @@ interface PetStore extends GameState {
 
 const INITIAL_PET_STATE: Omit<PetState, "id" | "name" | "petType" | "lifeExpectancy" | "birthday" | "lastSimulatedAt"> = {
     status: PetStatus.Idle,
+    phase: PetPhase.Baby,
 
     // Vitals
     age: 0,
@@ -58,6 +59,8 @@ const INITIAL_PET_STATE: Omit<PetState, "id" | "name" | "petType" | "lifeExpecta
     sickTime: 0,
     sleepTime: 0,
     eatingTime: 0,
+    poopTime: 0,
+    vomitTime: 0,
     offlineTime: 0,
 
     // Settings
@@ -237,6 +240,9 @@ export const usePetStore = create<PetStore>()(
                                 status: PetStatus.Sleeping,
                                 weight: Math.max(0, pet.weight - 5),
                                 mood: Math.min(GAME_CONSTANTS.MAX_MOOD, pet.mood + 15),
+                                // Cure sickness if clean
+                                isSick: pet.isSick && !pet.isDirty ? false : pet.isSick,
+                                sickTime: pet.isSick && !pet.isDirty ? 0 : pet.sickTime,
                             }
                         }
                     };

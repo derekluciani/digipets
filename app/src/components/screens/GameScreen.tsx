@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePetStore } from "../../store/usePetStore";
 import { useGameLoop } from "../../hooks/useGameLoop";
-import { isNightMinuteOfDay } from "../../constants";
-import { PetStatus } from "../../types/game";
+import { GAME_CONSTANTS, isNightMinuteOfDay } from "../../constants";
+import { PetStatus, PetPhase } from "../../types/game";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 // import { Radio } from "lucide-react";
@@ -190,6 +190,14 @@ export const GameScreen = () => {
     // Day/Night indicator
     const isNight = isNightMinuteOfDay(pet.minuteOfDay);
 
+    const phaseEmojis: Record<PetPhase, string> = {
+        [PetPhase.Baby]: "🍼",
+        [PetPhase.Toddler]: "🧸",
+        [PetPhase.Teen]: "🧢",
+        [PetPhase.Adult]: "🦊",
+        [PetPhase.Special]: "🦄",
+    };
+
     return (
         <div className={`flex flex-col items-center min-h-screen p-4 transition-colors duration-1000 ${isNight ? 'bg-slate-900 text-white' : 'bg-sky-100 text-slate-900'}`}>
             <RadioPlayer />
@@ -197,18 +205,28 @@ export const GameScreen = () => {
             <audio ref={decreaseAudioRef} src={sfxUrls.decrease} preload="auto" className="hidden" />
 
             {/* Header */}
-            <div className="w-full max-w-md flex justify-between items-center mb-8">
-                <Button variant="ghost" onClick={() => navigate("/")} className={isNight ? "text-white hover:bg-slate-800" : ""}>
-                    ← Menu
-                </Button>
-                <div className="text-xl font-bold">{pet.name}</div>
-                <div className="text-right">
-                    <div className="font-mono text-lg font-bold">
-                        {Math.floor((pet.minuteOfDay % 1440) / 60) % 12 || 12}:
-                        {Math.floor(pet.minuteOfDay % 60).toString().padStart(2, "0")}
-                        {' '}{Math.floor((pet.minuteOfDay % 1440) / 60) >= 12 ? 'PM' : 'AM'}
+            <div className="w-full max-w-md flex flex-col gap-4 mb-8">
+                <div className="flex justify-start">
+                    <Button variant="ghost" onClick={() => navigate("/")} className={`pl-0 hover:bg-transparent ${isNight ? "text-white hover:text-slate-300" : "text-slate-600 hover:text-slate-900"}`}>
+                        ← Menu
+                    </Button>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                    <div className="text-4xl font-black tracking-tight drop-shadow-sm">{pet.name}</div>
+                    
+                    <div className={`flex items-center gap-3 px-5 py-3 rounded-md shadow-sm border-2 backdrop-blur-sm transition-all ${isNight ? "bg-slate-800/80 border-slate-700 text-white" : "bg-white/50 border-slate-200 text-slate-900"}`}>
+                        <span className="text-3xl filter drop-shadow-sm">{isNight ? '🌙' : '☀️'}</span>
+                        <div className="flex flex-col items-end leading-none">
+                            <span className="font-mono text-3xl font-black tracking-tight tabular-nums">
+                                {Math.floor((pet.minuteOfDay % 1440) / 60) % 12 || 12}:
+                                {Math.floor(pet.minuteOfDay % 60).toString().padStart(2, "0")}
+                            </span>
+                            <span className="text-xs font-bold uppercase opacity-60 tracking-widest mt-0.5">
+                                {Math.floor((pet.minuteOfDay % 1440) / 60) >= 12 ? 'PM' : 'AM'}
+                            </span>
+                        </div>
                     </div>
-                    <div className="text-xs opacity-70">Age {Math.floor(pet.age)}</div>
                 </div>
             </div>
 
@@ -231,31 +249,34 @@ export const GameScreen = () => {
                 {/* Vitals */}
                 <Card className={`w-full ${isNight ? "bg-slate-800 border-slate-700 text-white" : "bg-white/80 backdrop-blur"}`}>
                     <CardContent className="grid gap-4 py-6">
-                        <VitalRow label="Hunger" value={pet.hunger} max={100} />
-                        <VitalRow label="Energy" value={pet.energy} max={100} />
-                        <VitalRow label="Mood" value={pet.mood} max={100} />
-                        <VitalRow label="Health" value={pet.healthPoints} max={100} />
+                        <VitalRow label="Age" value={pet.age} suffix="Years" icon={phaseEmojis[pet.phase]} />
+                        <VitalRow label="Hunger" value={pet.hunger} max={100} isCritical={pet.hunger >= GAME_CONSTANTS.HUNGER_STARVING} />
+                        <VitalRow label="Energy" value={pet.energy} max={100} isCritical={pet.energy <= GAME_CONSTANTS.MOOD_LOW} />
+                        <VitalRow label="Mood" value={pet.mood} max={100} isCritical={pet.mood <= GAME_CONSTANTS.MOOD_LOW} />
+                        <VitalRow label="Health" value={pet.healthPoints} max={100} isCritical={pet.healthPoints <= 20} />
                     </CardContent>
                 </Card>
 
                 {/* Actions */}
                 <div className="grid grid-cols-3 gap-3 w-full">
-                    <ActionButton label="Feed" onClick={() => feedPet(pet.id)} disabled={pet.status === PetStatus.Sleeping} emoji="🍎" />
+                    <ActionButton label="Feed" onClick={() => feedPet(pet.id)} disabled={pet.status === PetStatus.Sleeping} emoji="🍎" isNight={isNight} />
                     <ActionButton
                         label={pet.status === PetStatus.Playing ? "Stop" : "Play"}
                         onClick={() => playPet(pet.id)}
                         disabled={pet.status === PetStatus.Sleeping || (pet.status !== PetStatus.Playing && pet.energy <= 33)}
                         emoji="🎾"
                         active={pet.status === PetStatus.Playing}
+                        isNight={isNight}
                     />
-                    <ActionButton label={pet.status === PetStatus.Sleeping ? "Wake" : "Sleep"} onClick={() => sleepPet(pet.id)} emoji="💤" />
-                    <ActionButton label="Clean" onClick={() => cleanPet(pet.id)} disabled={!pet.isDirty} emoji="✨" />
+                    <ActionButton label={pet.status === PetStatus.Sleeping ? "Wake" : "Sleep"} onClick={() => sleepPet(pet.id)} emoji="💤" isNight={isNight} />
+                    <ActionButton label="Clean" onClick={() => cleanPet(pet.id)} disabled={!pet.isDirty} emoji="✨" isNight={isNight} />
                     <ActionButton
                         label={pet.isRadioPlaying ? "Radio Off" : "Radio On"}
                         onClick={() => toggleRadio(pet.id)}
                         disabled={pet.status === PetStatus.Sleeping}
                         emoji="📻"
                         active={pet.isRadioPlaying}
+                        isNight={isNight}
                     />
                 </div>
 
@@ -264,21 +285,34 @@ export const GameScreen = () => {
     );
 };
 
-const VitalRow = ({ label, value, max }: { label: string, value: number, max: number }) => (
+const VitalRow = ({ label, value, max, isCritical, suffix, icon }: { label: string, value: number, max?: number, isCritical?: boolean, suffix?: string, icon?: string }) => (
     <div className="flex justify-between items-center border-b border-black/5 last:border-0 pb-2 last:pb-0">
         <span className="text-sm font-medium">{label}</span>
-        <span className="font-mono text-xl font-bold">{Math.round(value)}<span className="text-sm font-normal opacity-50">/{max}</span></span>
+        <span className={`font-mono text-xl font-bold ${isCritical ? 'text-red-500' : ''}`}>
+            {icon && <span className="mr-2 text-xl inline-block align-middle">{icon}</span>}
+            <span className="align-middle">{Math.round(value)}</span>
+            {suffix && <span className="text-sm font-normal opacity-50 ml-1 align-middle">{suffix}</span>}
+            {max !== undefined && <span className={`text-sm font-normal opacity-50 ${isCritical ? 'text-red-500' : ''} align-middle`}>/{max}</span>}
+        </span>
     </div>
 );
 
-const ActionButton = ({ label, onClick, disabled, emoji, active }: { label: string, onClick: () => void, disabled?: boolean, emoji: string, active?: boolean }) => (
+const ActionButton = ({ label, onClick, disabled, emoji, active, isNight }: { label: string, onClick: () => void, disabled?: boolean, emoji: string, active?: boolean, isNight?: boolean }) => (
     <Button
-        variant={active ? "default" : "secondary"}
-        className={`h-20 flex flex-col gap-1 items-center justify-center ${active ? 'border-2 border-primary' : ''}`}
+        variant={active ? "default" : "outline"}
+        className={`h-24 flex flex-col gap-2 items-center justify-center transition-all active:scale-95 rounded-2xl backdrop-blur-md border-2 ${
+            !disabled ? 'shadow-lg' : 'shadow-none'
+        } ${
+            active 
+                ? 'ring-2 ring-primary ring-offset-2 border-transparent' 
+                : isNight 
+                    ? 'bg-slate-800/80 border-slate-600 text-blue-100 hover:bg-slate-700'
+                    : 'bg-white/60 border-white text-slate-800 hover:bg-white/80'
+        } ${disabled ? 'opacity-40 grayscale pointer-events-none' : ''}`}
         onClick={onClick}
         disabled={disabled}
     >
-        <span className="text-2xl">{emoji}</span>
-        <span className="text-xs">{label}</span>
+        <span className="text-3xl filter drop-shadow-sm">{emoji}</span>
+        <span className="text-[10px] uppercase tracking-wider font-bold opacity-80">{label}</span>
     </Button>
 );

@@ -1,4 +1,4 @@
-import { type PetState, PetStatus } from "../types/game";
+import { type PetState, PetStatus, CauseOfDeath, PetPhase } from "../types/game";
 import { GAME_CONSTANTS, isNightMinuteOfDay } from "../constants";
 import { computeCaretakerScore, qualifiesForSpecialPhase, type CaretakerScoreInputs } from "./caretakerScore";
 
@@ -10,14 +10,30 @@ const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(mi
 /**
  * Determine Life Phase based on age (years) and life expectancy (years)
  */
+function updatePetPhase(pet: PetState): PetPhase {
+    if (pet.isDead) return pet.phase; // Keep current phase if dead
 
-// Phase thresholds from PRD
-// 1 Baby: < ceil(L/4)
-// 2 Toddler: ceil(L/4) <= age < ceil(L/2)
-// 3 Teen: ceil(L/2) <= age < ceil(3*L/4)
-// 4 Adult: age >= ceil(3*L/4)
+    // Special phase overrides others
+    if (pet.isSpecial) return PetPhase.Special;
 
+    const lifeExpectancy = pet.lifeExpectancy;
+    const age = pet.age;
 
+    // Phase thresholds from PRD
+    // 1 Baby: < ceil(L/4)
+    // 2 Toddler: ceil(L/4) <= age < ceil(L/2)
+    // 3 Teen: ceil(L/2) <= age < ceil(3*L/4)
+    // 4 Adult: age >= ceil(3*L/4)
+
+    const L4 = Math.ceil(lifeExpectancy / 4);
+    const L2 = Math.ceil(lifeExpectancy / 2);
+    const L34 = Math.ceil(3 * lifeExpectancy / 4);
+
+    if (age < L4) return PetPhase.Baby;
+    if (age < L2) return PetPhase.Toddler;
+    if (age < L34) return PetPhase.Teen;
+    return PetPhase.Adult;
+}
 
 /**
  * Simulator: Process 1 Game Minute
@@ -59,12 +75,14 @@ export function simulateOneMinute(pet: PetState): PetState {
             } else {
                 next.isDead = true;
                 next.status = PetStatus.Dead;
+                next.causeOfDeath = CauseOfDeath.OldAge;
                 return next; // Stop processing if dead
             }
         } else if (next.isSpecial && next.age >= next.lifeExpectancy) {
             // End of extended life
             next.isDead = true;
             next.status = PetStatus.Dead;
+            next.causeOfDeath = CauseOfDeath.OldAge;
             return next;
         }
     }
@@ -125,6 +143,20 @@ export function simulateOneMinute(pet: PetState): PetState {
         next.eatingTime = 0;
     }
 
+    // Pooping
+    if (next.status === PetStatus.Pooping) {
+        next.poopTime = (next.poopTime ?? 0) + 1;
+    } else {
+        next.poopTime = 0;
+    }
+
+    // Vomiting
+    if (next.status === PetStatus.Vomiting) {
+        next.vomitTime = (next.vomitTime ?? 0) + 1;
+    } else {
+        next.vomitTime = 0;
+    }
+
     // Whining / Response Time
     // isWhining definition: hunger >= 90 OR energy <= 10 OR (mood == 0 && moodTime >= 180) OR mood <= 10
     const isWhining =
@@ -169,8 +201,64 @@ export function simulateOneMinute(pet: PetState): PetState {
         next.eatingTime = 0;
     }
 
+    // 5c. Pooping Auto-Stop
+    // Duration: 10 minutes
+    if (next.status === PetStatus.Pooping && next.poopTime >= 10) {
+        next.status = PetStatus.Idle;
+        next.poopTime = 0;
+        next.mealsSincePoop = 0;
+        next.currentPoopCount += 1;
+        next.lifetimePoops += 1;
+        next.isDirty = true;
+    }
+
+    // 5d. Vomiting Auto-Stop
+    // Duration: 5 minutes
+    if (next.status === PetStatus.Vomiting && next.vomitTime >= 5) {
+        next.status = PetStatus.Idle;
+        next.vomitTime = 0;
+        next.isSick = true;
+        next.isDirty = true; // Required so the user can clean it
+        // Sick stats
+        next.hunger = 10;
+        next.mood = 10;
+        next.energy = 10;
+        // Reset hungerTime since we just emptied the tank
+        next.hungerTime = 0;
+    }
+
+    // 5e. Trigger Pooping
+    // Rule: After 3 meals, if Idle (or Dancing/Whining but not critical states)
+    if (
+        next.mealsSincePoop >= 3 &&
+        next.status !== PetStatus.Pooping &&
+        next.status !== PetStatus.Eating &&
+        next.status !== PetStatus.Sleeping &&
+        next.status !== PetStatus.Dead &&
+        next.status !== PetStatus.Playing &&
+        next.status !== PetStatus.Vomiting
+    ) {
+        next.status = PetStatus.Pooping;
+        next.poopTime = 0;
+    }
+
+    // 5f. Trigger Vomiting
+    // Rule: hungerTime >= VOMIT_HUNGER_TIME (180)
+    if (
+        next.hungerTime >= GAME_CONSTANTS.VOMIT_HUNGER_TIME &&
+        next.status !== PetStatus.Vomiting &&
+        next.status !== PetStatus.Dead &&
+        next.status !== PetStatus.Sleeping
+    ) {
+        next.status = PetStatus.Vomiting;
+        next.vomitTime = 0;
+    }
+
     // 6. Death Conditions (Constant Check)
     checkDeath(next);
+
+    // 7. Update Pet Phase
+    next.phase = updatePetPhase(next);
 
     return next;
 }
@@ -190,6 +278,16 @@ function applyHourlyLogic(pet: PetState) {
             pet.mood = clamp(pet.mood + 5, 0, GAME_CONSTANTS.MAX_MOOD);
             pet.energy = clamp(pet.energy - 5, 0, GAME_CONSTANTS.MAX_ENERGY);
         }
+
+        // Playing Specifics (per hour)
+        if (pet.status === PetStatus.Playing) {
+            // Net result: +5 mood, -5 energy (accounting for -1 base decay)
+            pet.mood = clamp(pet.mood + 6, 0, GAME_CONSTANTS.MAX_MOOD);
+            pet.energy = clamp(pet.energy - 4, 0, GAME_CONSTANTS.MAX_ENERGY);
+        }
+    } else if (pet.status === PetStatus.Sleeping) {
+        // Recover energy while sleeping
+        pet.energy = clamp(pet.energy + 5, 0, GAME_CONSTANTS.MAX_ENERGY);
     }
 
     // Health Neglect
@@ -230,6 +328,7 @@ function checkDeath(pet: PetState) {
     if (pet.healthPoints <= 0) {
         pet.isDead = true;
         pet.status = PetStatus.Dead;
+        pet.causeOfDeath = CauseOfDeath.Sickness;
         return;
     }
 
@@ -243,6 +342,7 @@ function checkDeath(pet: PetState) {
     if (pet.hunger === 100 && pet.starvingTime >= 720) {
         pet.isDead = true;
         pet.status = PetStatus.Dead;
+        pet.causeOfDeath = CauseOfDeath.Starvation;
         return;
     }
 
@@ -251,6 +351,7 @@ function checkDeath(pet: PetState) {
     if (pet.moodTime >= 720) {
         pet.isDead = true;
         pet.status = PetStatus.Dead;
+        pet.causeOfDeath = CauseOfDeath.Depression;
         return;
     }
 }
