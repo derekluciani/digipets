@@ -12,7 +12,7 @@ export const useGameLoop = () => {
 
 
             // Calculate elapsed game minutes
-            // 1 Real Second = 1 Game Minute (from PRD)
+            // 0.25 Real Second = 1 Game Minute (from PRD)
             // deltaTime is in ms
 
             // If we want exact 1 sec = 1 minute, we accumulate time.
