@@ -6,7 +6,7 @@ export const GAME_CONSTANTS = {
     DECAY_INTERVAL: 60, // Game minutes (1 hour)
 
     // Real time seconds per game minute
-    REAL_SECONDS_PER_GAME_MINUTE: 1,
+    REAL_SECONDS_PER_GAME_MINUTE: 0.25,
 
     // Limits
     MAX_HUNGER: 100,

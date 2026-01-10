@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { Trash2 } from "lucide-react";
 import { usePetStore } from "../../store/usePetStore";
 import { Button } from "../ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "../ui/card";
@@ -8,11 +9,19 @@ export const StartScreen = () => {
     const navigate = useNavigate();
     const pets = usePetStore((state) => state.pets);
     const setActivePet = usePetStore((state) => state.setActivePet);
+    const deletePet = usePetStore((state) => state.deletePet);
     const petList = Object.values(pets) as PetState[];
 
     const handleSelectPet = (id: string) => {
         setActivePet(id);
         navigate("/game");
+    };
+
+    const handleDeletePet = (e: React.MouseEvent, petId: string, petName: string) => {
+        e.stopPropagation();
+        if (window.confirm(`Are you sure you want to release ${petName}? This cannot be undone.`)) {
+            deletePet(petId);
+        }
     };
 
     const handleCreateNew = () => {
@@ -38,10 +47,20 @@ export const StartScreen = () => {
                                 <CardHeader className="p-4">
                                     <div className="flex items-center justify-between">
                                         <CardTitle className="text-lg">{pet.name}</CardTitle>
-                                        <span className="text-sm font-medium text-muted-foreground">{pet.petType}</span>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-sm font-medium text-muted-foreground">{pet.petType}</span>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 -mr-2"
+                                                onClick={(e) => handleDeletePet(e, pet.id, pet.name)}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
                                     <CardDescription>
-                                        Age: {pet.age} | Status: {pet.status}{pet.isDead ? " (Deceased)" : ""}
+                                        Age: {Math.floor(pet.age)} | Status: {pet.status}{pet.isDead ? " (Deceased)" : ""}
                                     </CardDescription>
                                 </CardHeader>
                             </Card>

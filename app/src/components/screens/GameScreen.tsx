@@ -5,7 +5,6 @@ import { useGameLoop } from "../../hooks/useGameLoop";
 import { GAME_CONSTANTS } from "../../constants";
 import { PetStatus } from "../../types/game";
 import { Button } from "../ui/button";
-import { Progress } from "../ui/progress";
 import { Card, CardContent } from "../ui/card";
 // import { Radio } from "lucide-react";
 
@@ -72,7 +71,14 @@ export const GameScreen = () => {
                     ← Menu
                 </Button>
                 <div className="text-xl font-bold">{pet.name}</div>
-                <div className="text-sm">Day {Number(pet.age).toFixed(0)}</div>
+                <div className="text-right">
+                    <div className="font-mono text-lg font-bold">
+                        {Math.floor((pet.minuteOfDay % 1440) / 60) % 12 || 12}:
+                        {Math.floor(pet.minuteOfDay % 60).toString().padStart(2, "0")}
+                        {' '}{Math.floor((pet.minuteOfDay % 1440) / 60) >= 12 ? 'PM' : 'AM'}
+                    </div>
+                    <div className="text-xs opacity-70">Day {Math.floor(pet.age)}</div>
+                </div>
             </div>
 
             {/* Main Visual */}
@@ -91,10 +97,10 @@ export const GameScreen = () => {
                 {/* Vitals */}
                 <Card className={`w-full ${isNight ? "bg-slate-800 border-slate-700 text-white" : "bg-white/80 backdrop-blur"}`}>
                     <CardContent className="grid gap-4 py-6">
-                        <VitalRow label="Hunger" value={pet.hunger} max={100} color="bg-orange-500" inverted />
-                        <VitalRow label="Energy" value={pet.energy} max={100} color="bg-yellow-500" />
-                        <VitalRow label="Mood" value={pet.mood} max={100} color="bg-pink-500" />
-                        <VitalRow label="Health" value={pet.healthPoints} max={100} color="bg-red-600" />
+                        <VitalRow label="Hunger" value={pet.hunger} max={100} />
+                        <VitalRow label="Energy" value={pet.energy} max={100} />
+                        <VitalRow label="Mood" value={pet.mood} max={100} />
+                        <VitalRow label="Health" value={pet.healthPoints} max={100} />
                     </CardContent>
                 </Card>
 
@@ -118,10 +124,10 @@ export const GameScreen = () => {
     );
 };
 
-const VitalRow = ({ label, value, max, color }: { label: string, value: number, max: number, color: string, inverted?: boolean }) => (
-    <div className="grid grid-cols-4 items-center gap-2">
+const VitalRow = ({ label, value, max }: { label: string, value: number, max: number }) => (
+    <div className="flex justify-between items-center border-b border-black/5 last:border-0 pb-2 last:pb-0">
         <span className="text-sm font-medium">{label}</span>
-        <Progress value={(value / max) * 100} className="col-span-3 h-2" indicatorClassName={color} />
+        <span className="font-mono text-xl font-bold">{Math.round(value)}<span className="text-sm font-normal opacity-50">/{max}</span></span>
     </div>
 );
 
