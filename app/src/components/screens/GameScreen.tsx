@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePetStore } from "../../store/usePetStore";
 import { useGameLoop } from "../../hooks/useGameLoop";
@@ -9,8 +9,6 @@ import { Card, CardContent } from "../ui/card";
 // import { Radio } from "lucide-react";
 
 import { RadioPlayer } from "../RadioPlayer";
-import increaseSfxAiffUrl from "../../assets/increase.aiff";
-import decreaseSfxAiffUrl from "../../assets/decrease.aiff";
 import positiveSfxWavUrl from "../../assets/positive.wav";
 import negativeSfxWavUrl from "../../assets/negative.wav";
 
@@ -32,10 +30,10 @@ export const GameScreen = () => {
     const decreaseAudioRef = useRef<HTMLAudioElement>(null);
     const audioUnlockedRef = useRef(false);
 
-    const [sfxUrls, setSfxUrls] = useState(() => ({
+    const sfxUrls = {
         increase: positiveSfxWavUrl,
         decrease: negativeSfxWavUrl,
-    }));
+    };
 
     const prevVitalsRef = useRef<{
         hunger: number;
@@ -48,18 +46,6 @@ export const GameScreen = () => {
     // Start Simulation Loop
     useGameLoop();
 
-    useEffect(() => {
-        const audio = document.createElement("audio");
-        const canPlayAiff =
-            audio.canPlayType("audio/aiff") !== "" ||
-            audio.canPlayType("audio/x-aiff") !== "";
-
-        if (canPlayAiff) {
-            setSfxUrls({ increase: increaseSfxAiffUrl, decrease: decreaseSfxAiffUrl });
-        } else {
-            console.warn("AIFF not supported in this browser; using WAV fallback.");
-        }
-    }, []);
 
     useEffect(() => {
         const unlockAudio = () => {
@@ -211,10 +197,10 @@ export const GameScreen = () => {
                         ← Menu
                     </Button>
                 </div>
-                
+
                 <div className="flex justify-between items-center">
                     <div className="text-4xl font-black tracking-tight drop-shadow-sm">{pet.name}</div>
-                    
+
                     <div className={`flex items-center gap-3 px-5 py-3 rounded-md shadow-sm border-2 backdrop-blur-sm transition-all ${isNight ? "bg-slate-800/80 border-slate-700 text-white" : "bg-white/50 border-slate-200 text-slate-900"}`}>
                         <span className="text-3xl filter drop-shadow-sm">{isNight ? '🌙' : '☀️'}</span>
                         <div className="flex flex-col items-end leading-none">
@@ -300,15 +286,13 @@ const VitalRow = ({ label, value, max, isCritical, suffix, icon }: { label: stri
 const ActionButton = ({ label, onClick, disabled, emoji, active, isNight }: { label: string, onClick: () => void, disabled?: boolean, emoji: string, active?: boolean, isNight?: boolean }) => (
     <Button
         variant={active ? "default" : "outline"}
-        className={`h-24 flex flex-col gap-2 items-center justify-center transition-all active:scale-95 rounded-2xl backdrop-blur-md border-2 ${
-            !disabled ? 'shadow-lg' : 'shadow-none'
-        } ${
-            active 
-                ? 'ring-2 ring-primary ring-offset-2 border-transparent' 
-                : isNight 
+        className={`h-24 flex flex-col gap-2 items-center justify-center transition-all active:scale-95 rounded-2xl backdrop-blur-md border-2 ${!disabled ? 'shadow-lg' : 'shadow-none'
+            } ${active
+                ? 'ring-2 ring-primary ring-offset-2 border-transparent'
+                : isNight
                     ? 'bg-slate-800/80 border-slate-600 text-blue-100 hover:bg-slate-700'
                     : 'bg-white/60 border-white text-slate-800 hover:bg-white/80'
-        } ${disabled ? 'opacity-40 grayscale pointer-events-none' : ''}`}
+            } ${disabled ? 'opacity-40 grayscale pointer-events-none' : ''}`}
         onClick={onClick}
         disabled={disabled}
     >

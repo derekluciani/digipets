@@ -1,15 +1,11 @@
-import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePetStore } from "../../store/usePetStore";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import html2canvas from "html2canvas";
-import { Download } from "lucide-react";
 import { PetPhase } from "../../types/game";
 
 export const DeathScreen = () => {
     const navigate = useNavigate();
-    const summaryRef = useRef<HTMLDivElement>(null);
 
     const activePetId = usePetStore((state) => state.activePetId);
     const pets = usePetStore((state) => state.pets);
@@ -26,15 +22,6 @@ export const DeathScreen = () => {
             return null;
         }
     }
-
-    const handleExport = async () => {
-        if (!summaryRef.current) return;
-        const canvas = await html2canvas(summaryRef.current);
-        const link = document.createElement("a");
-        link.download = `digipet-${pet.name}-summary.jpg`;
-        link.href = canvas.toDataURL("image/jpeg");
-        link.click();
-    };
 
     const scoreGrade = (score: number) => {
         if (score >= 95) return "S+";
@@ -65,7 +52,7 @@ export const DeathScreen = () => {
         <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 p-4 text-white">
             <h1 className="text-4xl font-bold mb-8 text-red-500">GAME OVER</h1>
 
-            <Card ref={summaryRef} className="w-full max-w-sm shadow-2xl">
+            <Card className="w-full max-w-sm shadow-2xl">
                 <CardHeader className="text-center">
                     <div className="text-6xl mb-4">🪦</div>
                     <CardTitle className="text-2xl font-bold">{pet.name}</CardTitle>
@@ -123,9 +110,6 @@ export const DeathScreen = () => {
             <div className="flex gap-4 mt-8 w-full max-w-sm">
                 <Button className="flex-1" variant="secondary" onClick={() => navigate("/")}>
                     Main Menu
-                </Button>
-                <Button className="flex-1" onClick={handleExport}>
-                    <Download className="mr-2 h-4 w-4" /> Export
                 </Button>
             </div>
         </div>
