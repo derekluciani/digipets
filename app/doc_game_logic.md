@@ -68,10 +68,12 @@ All vitals are measured on a scale of 0-100.
 -   **Pooping**: Occurs after 3 meals. Lasts for **10 game minutes**, then the pet becomes Dirty.
 -   **Vomiting**: Occurs when `hungerTime` (overfed) reaches **180 minutes**. Lasts for **5 game minutes**, then the pet becomes Sick and Dirty.
 -   **Playing**: Occurs after `Play` action.
+    -   **Effect**: Increases Mood by `5` per hour. Decreases Energy by `5` per hour.
 -   **Sleeping**:
     -   Can be initiated by the player.
     -   Wakes up automatically after **60 game minutes (day)** or **360 game minutes (night)**.
 -   **Dancing**: Occurs when the radio is on and the pet is not in another state.
+    -   **Effect**: Increases Mood by `4` per hour. Decreases Energy by `6` per hour. Increases Hunger by `6` per hour. Decreases Weight by `1` per hour.
 -   **Dead**: The final state.
 
 ### Flags (Conditions)
