@@ -2,7 +2,7 @@
  * Caretaker Score (0–100)
  * Goal:
  * - Produce school-like results: <60 = F, >=90 = A.
- * - Preserve Special Phase gate: caretakerScore >= 95.
+ * - Preserve Special Phase gate: caretakerScore >= 50.
  *
  * Inputs:
  * - mood, hunger, healthPoints are already 0–100 vitals.
@@ -53,7 +53,7 @@ const DEFAULT_CONFIG: CaretakerScoreConfig = {
     minutesPerYear: 1440,
 
     // Tuned so A (>=90) requires consistently strong care,
-    // and Special (>=95) is a notable achievement.
+    // and Special (>=50) is a notable achievement.
     weights: {
         mood: 0.25,
         hungerInverted: 0.25,
@@ -221,5 +221,5 @@ export function caretakerLetterGrade(
  * Special Phase gate helper
  */
 export function qualifiesForSpecialPhase(score: number): boolean {
-    return clamp100(score) >= 95;
+    return clamp100(score) >= 50;
 }
