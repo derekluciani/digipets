@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { type PetState, type PetType, PetStatus, type GameState, PetPhase } from "../types/game";
 import { GAME_CONSTANTS } from "../constants";
 import { simulateOneMinute } from "../logic/simulation";
+import { feed, play, sleep, clean, toggleRadio } from "../logic/actions";
 
 interface PetStore extends GameState {
     // Actions
@@ -162,28 +163,15 @@ export const usePetStore = create<PetStore>()(
             feedPet: (petId: string) => {
                 set((state: PetStore) => {
                     const pet = state.pets[petId];
-                    if (!pet || pet.status === PetStatus.Dead || pet.status === PetStatus.Sleeping) return state;
+                    if (!pet) return state;
 
-                    if (pet.hunger <= 0) return state;
-
-                    const newHunger = Math.max(0, pet.hunger - 10);
-                    const newWeight = Math.min(GAME_CONSTANTS.MAX_WEIGHT, pet.weight + 10);
-                    const newMood = Math.min(GAME_CONSTANTS.MAX_MOOD, pet.mood + 5);
-                    const newEnergy = Math.min(GAME_CONSTANTS.MAX_ENERGY, pet.energy + 5);
+                    const newPet = feed(pet);
+                    if (newPet === pet) return state;
 
                     return {
                         pets: {
                             ...state.pets,
-                            [petId]: {
-                                ...pet,
-                                status: PetStatus.Eating,
-                                eatingTime: 0,
-                                hunger: newHunger,
-                                weight: newWeight,
-                                mood: newMood,
-                                energy: newEnergy,
-                                mealsSincePoop: pet.mealsSincePoop + 1,
-                            }
+                            [petId]: newPet
                         }
                     };
                 });
@@ -192,30 +180,15 @@ export const usePetStore = create<PetStore>()(
             playPet: (petId: string) => {
                 set((state: PetStore) => {
                     const pet = state.pets[petId];
-                    if (!pet || pet.status === PetStatus.Dead || pet.status === PetStatus.Sleeping) return state;
+                    if (!pet) return state;
 
-                    // Toggle off if already playing
-                    if (pet.status === PetStatus.Playing) {
-                        return {
-                            pets: {
-                                ...state.pets,
-                                [petId]: {
-                                    ...pet,
-                                    status: PetStatus.Idle,
-                                }
-                            }
-                        };
-                    }
-
-                    if (pet.energy <= 33) return state;
+                    const newPet = play(pet);
+                    if (newPet === pet) return state;
 
                     return {
                         pets: {
                             ...state.pets,
-                            [petId]: {
-                                ...pet,
-                                status: PetStatus.Playing,
-                            }
+                            [petId]: newPet
                         }
                     };
                 });
@@ -224,26 +197,15 @@ export const usePetStore = create<PetStore>()(
             sleepPet: (petId: string) => {
                 set((state: PetStore) => {
                     const pet = state.pets[petId];
-                    if (!pet || pet.status === PetStatus.Dead) return state;
+                    if (!pet) return state;
 
-                    if (pet.status === PetStatus.Sleeping) {
-                        return {
-                            pets: { ...state.pets, [petId]: { ...pet, status: PetStatus.Idle } }
-                        };
-                    }
+                    const newPet = sleep(pet);
+                    if (newPet === pet) return state;
 
                     return {
                         pets: {
                             ...state.pets,
-                            [petId]: {
-                                ...pet,
-                                status: PetStatus.Sleeping,
-                                weight: Math.max(0, pet.weight - 5),
-                                mood: Math.min(GAME_CONSTANTS.MAX_MOOD, pet.mood + 15),
-                                // Cure sickness if clean
-                                isSick: pet.isSick && !pet.isDirty ? false : pet.isSick,
-                                sickTime: pet.isSick && !pet.isDirty ? 0 : pet.sickTime,
-                            }
+                            [petId]: newPet
                         }
                     };
                 });
@@ -252,18 +214,15 @@ export const usePetStore = create<PetStore>()(
             cleanPet: (petId: string) => {
                 set((state: PetStore) => {
                     const pet = state.pets[petId];
-                    if (!pet || pet.status === PetStatus.Dead) return state;
+                    if (!pet) return state;
+
+                    const newPet = clean(pet);
+                    if (newPet === pet) return state;
 
                     return {
                         pets: {
                             ...state.pets,
-                            [petId]: {
-                                ...pet,
-                                currentPoopCount: 0,
-                                isDirty: false,
-                                dirtyTime: 0,
-                                mood: Math.min(GAME_CONSTANTS.MAX_MOOD, pet.mood + 10),
-                            }
+                            [petId]: newPet
                         }
                     };
                 });
@@ -272,25 +231,15 @@ export const usePetStore = create<PetStore>()(
             toggleRadio: (petId: string) => {
                 set((state: PetStore) => {
                     const pet = state.pets[petId];
-                    if (!pet || pet.status === PetStatus.Dead) return state;
+                    if (!pet) return state;
 
-                    const isPlaying = !pet.isRadioPlaying;
-
-                    let newStatus = pet.status;
-                    if (isPlaying && pet.status === PetStatus.Idle) {
-                        newStatus = PetStatus.Dancing;
-                    } else if (!isPlaying && pet.status === PetStatus.Dancing) {
-                        newStatus = PetStatus.Idle;
-                    }
+                    const newPet = toggleRadio(pet);
+                    if (newPet === pet) return state;
 
                     return {
                         pets: {
                             ...state.pets,
-                            [petId]: {
-                                ...pet,
-                                isRadioPlaying: isPlaying,
-                                status: newStatus,
-                            }
+                            [petId]: newPet
                         }
                     };
                 });
