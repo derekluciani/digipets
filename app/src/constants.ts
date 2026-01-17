@@ -8,7 +8,7 @@ export const GAME_CONSTANTS = {
     EATING_DURATION_MINUTES: 12,
 
     // Real time seconds per game minute
-    REAL_SECONDS_PER_GAME_MINUTE: 0.25,
+    REAL_SECONDS_PER_GAME_MINUTE: 0.125,
 
     // Limits
     MAX_HUNGER: 100,
