@@ -2,7 +2,7 @@
   "character": {
     "type": "fox",
     "default_personality": "happy",
-    "base_img": "fox_base.png",
+    "base_sprite": "fox_base.png",
     "art_style": "cute_animal_pixel_art",
     "motion_style": "deliberate retro game feel, low frame rate"
   },
@@ -31,30 +31,48 @@
         "color": "black",
         "thickness_px": 1
       },
-      "reference_img": "fox_base.png"
+      "base_sprite": "fox_base.png"
     },
     "animation_sequence": {
-      "idle": {
+      "idle_stand": {
         "description": "Standing in place, subtle movements",
         "frames_per_second": 8,
         "seconds_per_frame": 0.05,
         "loop": true,
         "allowed_movements": ["eyes_blink", "ears_twitch", "tail_sways"]
       },
+      "idle_sit": {
+        "description": "Sitting, back facing the camera, watching tv",
+        "frames_per_second": 8,
+        "seconds_per_frame": 0.05,
+        "loop": true,
+        "allowed_movements": ["tail wagging", "ears_twitch"]
+      },
       "sleeping": {
-        "description": "Sleeping on ground, horizontal orientation, facing camera, snoring, slow breathing",
-        "frames": 8,
-        "fps": 0.05,
+        "description": "Sleeping on ground, horizontal, character facing camera, snoring, slow breathing",
+        "frames_per_second": 8,
+        "seconds_per_frame": 0.05,
         "loop": true,
         "allowed_changes": [
           "eyes closed",
           "mouth breathing",
           "floating Zzz letters"
         ]
+      },
+      "dancing": {
+        "description": "Dancing in place, wearing cool sun glasses",
+        "frames_per_second": 12,
+        "seconds_per_frame": 0.005,
+        "loop": true,
+        "allowed_changes": [
+          "arms upward, shifting up and down",
+          "lower body shifting side-to-side",
+          "mouth opens to sing"
+        ]
       }
     },
     "export specs": {
-      "sprite_sheet": {
+      "single_sprite_sheet": {
         "layout": "row_per_animation_sequence",
         "padding_px": 0,
         "background": "transparent"
